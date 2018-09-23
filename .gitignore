@@ -70,3 +70,6 @@ docs/dev/generate/
 
 # MYPY static type checker cache
 .mypy_cache
+
+# vscode
+.vscode
