@@ -97,10 +97,24 @@ def cloud_probs(data, model='spectral', ref=None):
 def cloud_mask(data, model='spectral', ref=None):
     probs = cloud_probs(data, model=model, ref=ref)
     return (probs > 0.5)
-    
+
 
 class DataDimensionalityError(ValueError):
     pass
+
+
+def mask_cloud_as_nan(data, model='spectral', ref=None):
+    cm = MODELS[model]()
+    if len(data.shape) == 3:
+        prob = cm.predict_proba(data, ref=ref)
+        data[prob > 0.5] = np.nan
+    elif len(data.shape) == 4:
+        probs = np.empty((data.shape[0], data.shape[1], data.shape[3]), dtype=np.float32)
+        for t in range(data.shape[3]):
+            obs = data[:,:,:,t]
+            prb = cm.predict_proba(obs, ref=ref).reshape(data.shape[0], data.shape[1])
+            obs[prb > 0.5] = np.nan
+    raise DataDimensionalityError("data must have 3 or 4 dimensions.")
 
 
 class Classifier:
