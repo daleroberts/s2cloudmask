@@ -31,4 +31,4 @@ This package has an easy interface. Given a numpy array `obs` ordered as (y,x,ba
  * Roberts, D., Mueller, N., McIntyre, A. (2017). [High-dimensional pixel composites from Earth observation time series](https://ieeexplore.ieee.org/document/8004469). *IEEE Transactions on Geoscience and Remote Sensing*, PP, 99. pp. 1--11.
 
 
-<img src="http://www.ga.gov.au/__data/assets/image/0003/61563/PP-742-Washington-Landing-Page-Banner-FA.png" width=960>
+<img src="http://www.ga.gov.au/__data/assets/image/0011/61589/GA-DEA-Logo-Inline-370x73.png" width=370>
