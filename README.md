@@ -2,7 +2,7 @@
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) ![Release](https://img.shields.io/badge/Release-Private-ff69b4.svg)
 
-The [s2cloudmask](https://github.com/daleroberts/s2cloudmask) Python package provides Machine Learning classifiers for **cloud detection** in Sentinel-2 observations. The aim of this package is to open-source and demonstrate some of the tools being developed as part of the [Digital Earth Australia](https://www.ga.gov.au/dea) initiative and to push the state-of-art in the area of cloud classification.
+The [s2cloudmask](https://github.com/daleroberts/s2cloudmask) Python package provides Machine Learning classifiers for **Cloud Detection** in [Sentinel-2](https://en.wikipedia.org/wiki/Sentinel-2) observations. The aim of this package is to open-source and demonstrate some of the tools being developed as part of the [Digital Earth Australia](https://www.ga.gov.au/dea) initiative and to push the state-of-art in the area of cloud classification.
 
 The package currently provides two classifiers:
  * A spectral pixel-based approach
@@ -29,3 +29,6 @@ This package has an easy interface. Given a numpy array `obs` ordered as (y,x,ba
 ### References
 
  * Roberts, D., Mueller, N., McIntyre, A. (2017). [High-dimensional pixel composites from Earth observation time series](https://ieeexplore.ieee.org/document/8004469). *IEEE Transactions on Geoscience and Remote Sensing*, PP, 99. pp. 1--11.
+
+
+<img src="http://www.ga.gov.au/__data/assets/image/0003/61563/PP-742-Washington-Landing-Page-Banner-FA.png" width=960>
