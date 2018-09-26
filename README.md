@@ -38,3 +38,9 @@ You may be interested to read:
 Roberts, D., Mueller, N., McIntyre, A. (2017). [High-dimensional pixel composites from Earth observation time series](https://ieeexplore.ieee.org/document/8004469). *IEEE Transactions on Geoscience and Remote Sensing*, PP, 99. pp. 1--11.
 
 or maybe some of [my other open-source projects](https://github.com/daleroberts).
+
+### More Examples
+
+<img src="https://github.com/daleroberts/s2cloudmask/raw/master/docs/s2cloudmask-ex2.png" width="960">
+<img src="https://github.com/daleroberts/s2cloudmask/raw/master/docs/s2cloudmask-ex3.png" width="960">
+<img src="https://github.com/daleroberts/s2cloudmask/raw/master/docs/s2cloudmask-ex4.png" width="960">
