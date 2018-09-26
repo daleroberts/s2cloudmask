@@ -8,7 +8,6 @@ import joblib
 import os
 
 from numpy.testing import assert_equal, assert_array_almost_equal
-from nose.tools import assert_true, assert_raises
 
 CWD = os.path.dirname(__file__)
 CLEAR = joblib.load(os.path.join(CWD, 'data', 'clear-wright-20160101.pkl.xz'))
@@ -38,3 +37,11 @@ def test_spectral_easy_mask():
         obss = np.stack([obs, obs], axis=-1)
         mask = s2cm.cloud_mask(obss, model='spectral')
         assert_equal(np.count_nonzero(mask), 0)
+
+def test_spectral_mask_as_nan():
+        obs = CLEAR
+        mask = s2cm.cloud_mask(obs, model='spectral')
+        mobs = obs.copy()
+        s2cm.mask_cloud_as_nan(mobs, model='spectral')
+        nanmask = np.isnan(mobs).all(axis=2)
+        assert_equal(mask, nanmask)
