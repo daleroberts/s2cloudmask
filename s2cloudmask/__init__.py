@@ -145,6 +145,13 @@ class SpectralCloudClassifier(Classifier):
         prob = self.predict_proba(X)
         return prob > 0.5
 
+class FastSpectralCloudClassifier(SpectralCloudClassifier):
+    def __init__(self):
+        super().__init__()
+        self.model, self.ftrexprs = joblib.load(
+            os.path.join(CWD, "models", "fast-spectral-model.pkl.xz")
+        )
+
 class TemporalCloudClassifier(Classifier):
     def __init__(self):
         super().__init__()
@@ -169,6 +176,7 @@ class TemporalCloudClassifier(Classifier):
         return prob > 0.5
 
 MODELS = {
+    'fast': FastSpectralCloudClassifier,
     'spectral': SpectralCloudClassifier,
     'temporal': TemporalCloudClassifier
 }
