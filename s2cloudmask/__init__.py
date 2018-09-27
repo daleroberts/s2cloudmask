@@ -1,5 +1,6 @@
 import numpy as np
 import xarray as xr
+import logging
 import joblib
 import os
 
@@ -8,6 +9,8 @@ from skimage.morphology import opening, square
 
 CWD = os.path.dirname(__file__)
 BANDNAMES = ["B02", "B03", "B04", "B05", "B06", "B07", "B08", "B8A", "B11", "B12"]
+
+LOG = logging.getLogger(__name__)
 
 Data = Union[xr.Dataset, np.array]
 
@@ -91,7 +94,8 @@ def cloud_probs(data, model='spectral', ref=None):
             prb = cm.predict_proba(obs, ref=ref)
             probs[:,:,t] = prb.reshape(data.shape[0], data.shape[1])
         return probs
-    raise DataDimensionalityError("data must have 3 or 4 dimensions.")
+    else:
+        raise DataDimensionalityError("data must have 3 or 4 dimensions.")
 
 
 def cloud_mask(data, model='spectral', ref=None):
@@ -104,17 +108,22 @@ class DataDimensionalityError(ValueError):
 
 
 def mask_cloud_as_nan(data, model='spectral', ref=None):
+    LOG.debug('loading %s model', model)
     cm = MODELS[model]()
+    LOG.debug('Masking observations')
     if len(data.shape) == 3:
         prob = cm.predict_proba(data, ref=ref)
         data[prob > 0.5] = np.nan
     elif len(data.shape) == 4:
         probs = np.empty((data.shape[0], data.shape[1], data.shape[3]), dtype=np.float32)
         for t in range(data.shape[3]):
+            if t % 25 == 0:
+                LOG.debug('Masking observation %s/%s containing %s pixels', t, data.shape[3], data.shape[0]*data.shape[1])
             obs = data[:,:,:,t]
             prb = cm.predict_proba(obs, ref=ref).reshape(data.shape[0], data.shape[1])
             obs[prb > 0.5] = np.nan
-    raise DataDimensionalityError("data must have 3 or 4 dimensions.")
+    else:
+        raise DataDimensionalityError("data must have 3 or 4 dimensions.")
 
 
 class Classifier:
@@ -130,6 +139,12 @@ class SpectralCloudClassifier(Classifier):
         )
 
     def predict_proba(self, X: np.array, ref: Optional[np.array] = None) -> np.array:
+        if len(X.shape) == 4 and X.shape[2] == 10: # temporal stack (y,x,bands,time)
+            XX = np.transpose(X, [0,1,3,2]).reshape((X.shape[0], X.shape[1]*X.shape[3], X.shape[2]))
+            ftr = features(XX, self.ftrexprs, ref=ref)
+            prob = self.model.predict_proba(ftr.reshape((-1, ftr.shape[2])))[:, 1]
+            prob = prob.reshape((X.shape[0], X.shape[1], X.shape[3]))
+            return prob
         if len(X.shape) != 3 and X.shape[2] != 10:
             raise DataDimensionalityError(
                 "Data shape should have length 3 and last dim should be equal to 10."
