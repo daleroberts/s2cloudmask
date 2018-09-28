@@ -212,10 +212,37 @@ class SpectralCloudClassifier(Classifier):
         return prob > 0.5
 
 
-class FastCloudClassifier(SpectralCloudClassifier):
+class FastCloudClassifier(Classifier):
     def __init__(self):
         super().__init__()
         self.model, self.ftrexprs = joblib.load(os.path.join(CWD, "models", "fast-spectral-model.pkl.xz"))
+
+    def predict_proba(self, X: np.array, ref: Optional[np.array] = None) -> np.array:
+        if len(X.shape) == 4 and X.shape[2] == 10:  # temporal stack (y,x,bands,time)
+            XX = np.transpose(X, [0, 1, 3, 2]).reshape((X.shape[0], X.shape[1] * X.shape[3], X.shape[2]))
+            ftr = features(XX, self.ftrexprs, ref=ref)
+            ftr = ftr.reshape((-1, ftr.shape[2]))
+            good = ~np.isnan(ftr).any(axis=1)
+            prob = np.nan * np.ones((X.shape[0], X.shape[1]), dtype=np.float32).ravel()
+            prob[good] = self.model.predict_proba(ftr[good])[:, 1]
+            return prob.reshape((X.shape[0], X.shape[1]))
+        if len(X.shape) != 3 and X.shape[2] != 10:
+            raise DataDimensionalityError(
+                "Data shape should have length 3 and last dim should be equal to 10."
+            )
+        ftr = features(X, self.ftrexprs, ref=ref)
+        ftr = ftr.reshape((-1, ftr.shape[2]))
+        good = ~np.isnan(ftr).any(axis=1)
+        prob = np.nan * np.ones((X.shape[0], X.shape[1]), dtype=np.float32).ravel()
+        prob[good] = self.model.predict_proba(ftr[good])[:, 1]
+        prob = prob.reshape((X.shape[0], X.shape[1]))
+        opening(prob, square(3), out=prob)
+        prob[np.isnan(X).any(axis=2)] = np.nan
+        return prob
+
+    def predict(self, X: np.array, ref: Optional[np.array] = None) -> np.array:
+        prob = self.predict_proba(X)
+        return prob > 0.5
 
 
 class TemporalCloudClassifier(Classifier):
@@ -247,16 +274,20 @@ class FastShadowClassifier(Classifier):
         if len(X.shape) == 4 and X.shape[2] == 10:  # temporal stack (y,x,bands,time)
             XX = np.transpose(X, [0, 1, 3, 2]).reshape((X.shape[0], X.shape[1] * X.shape[3], X.shape[2]))
             ftr = features(XX, self.ftrexprs, ref=ref)
-            prob = self.model.predict_proba(ftr.reshape((-1, ftr.shape[2])))[:, 1]
-            prob = prob.reshape((X.shape[0], X.shape[1], X.shape[3]))
+            good = ~np.isnan(ftr).any(axis=2)
+            prob = np.nan * np.ones((X.shape[0], X.shape[1]), dtype=np.float32)
+            prob[good] = self.model.predict_proba(ftr[good].reshape((-1, ftr.shape[2])))[:, 1]
             return prob
         if len(X.shape) != 3 and X.shape[2] != 10:
             raise DataDimensionalityError(
                 "Data shape should have length 3 and last dim should be equal to 10."
             )
         ftr = features(X, self.ftrexprs, ref=ref)
-        prob = self.model.predict_proba(ftr.reshape((-1, ftr.shape[2])))[:, 1].reshape(X.shape[:2])
-        opening(prob, square(3), out=prob)
+        good = ~np.isnan(ftr).any(axis=2)
+        prob = np.nan * np.ones((X.shape[0], X.shape[1]), dtype=np.float32)
+        prob[good] = self.model.predict_proba(ftr[good].reshape((-1, ftr.shape[2])))[:, 1].reshape(
+            X.shape[:2]
+        )
         return prob
 
     def predict(self, X: np.array, ref: Optional[np.array] = None) -> np.array:
