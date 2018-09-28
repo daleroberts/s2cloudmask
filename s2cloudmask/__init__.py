@@ -57,7 +57,7 @@ def nldr(X: np.array, Y: np.array, i: int = 0, j: int = 1) -> np.array:
     denomX = XA + XB + 0.5
     numerY = 2 * (YA ** 2 + YB ** 2) + 1.5 * YB + 0.5 * YA
     denomY = YA + YB + 0.5
-    return np.absolute(numerX / denomX - numerY / denomY)
+    return numerX / denomX - numerY / denomY
 
 
 def features(obs, ftrexprs, ref=None):
@@ -83,34 +83,54 @@ def features(obs, ftrexprs, ref=None):
     return np.stack([eval(e, {"__builtins__": {}}, env) for e in ffexprs], axis=-1)
 
 
-def cloud_probs(data, model='spectral', ref=None):
+def cloud_probs(data, model="spectral", ref=None):
     cm = MODELS[model]()
     if len(data.shape) == 3:
         return cm.predict_proba(data, ref=ref)
     elif len(data.shape) == 4:
         probs = np.empty((data.shape[0], data.shape[1], data.shape[3]), dtype=np.float32)
         for t in range(data.shape[3]):
-            obs = data[:,:,:,t]
+            obs = data[:, :, :, t]
             prb = cm.predict_proba(obs, ref=ref)
-            probs[:,:,t] = prb.reshape(data.shape[0], data.shape[1])
+            probs[:, :, t] = prb.reshape(data.shape[0], data.shape[1])
         return probs
     else:
         raise DataDimensionalityError("data must have 3 or 4 dimensions.")
 
 
-def cloud_mask(data, model='spectral', ref=None):
+def shadow_probs(data, model="fast-shadow", ref=None):
+    cm = MODELS[model]()
+    if len(data.shape) == 3:
+        return cm.predict_proba(data, ref=ref)
+    elif len(data.shape) == 4:
+        probs = np.empty((data.shape[0], data.shape[1], data.shape[3]), dtype=np.float32)
+        for t in range(data.shape[3]):
+            obs = data[:, :, :, t]
+            prb = cm.predict_proba(obs, ref=ref)
+            probs[:, :, t] = prb.reshape(data.shape[0], data.shape[1])
+        return probs
+    else:
+        raise DataDimensionalityError("data must have 3 or 4 dimensions.")
+
+
+def cloud_mask(data, model="spectral", ref=None):
     probs = cloud_probs(data, model=model, ref=ref)
-    return (probs > 0.5)
+    return probs > 0.5
+
+
+def shadow_mask(data, model="fast-shadow", ref=None):
+    probs = cloud_probs(data, model=model, ref=ref)
+    return probs > 0.5
 
 
 class DataDimensionalityError(ValueError):
     pass
 
 
-def mask_cloud_as_nan(data, model='spectral', ref=None):
-    LOG.debug('loading %s model', model)
+def mask_cloud_as_nan(data, model="spectral", ref=None):
+    LOG.debug("loading %s model", model)
     cm = MODELS[model]()
-    LOG.debug('Masking observations')
+    LOG.debug("Masking observations")
     if len(data.shape) == 3:
         prob = cm.predict_proba(data, ref=ref)
         data[prob > 0.5] = np.nan
@@ -118,12 +138,46 @@ def mask_cloud_as_nan(data, model='spectral', ref=None):
         probs = np.empty((data.shape[0], data.shape[1], data.shape[3]), dtype=np.float32)
         for t in range(data.shape[3]):
             if t % 25 == 0:
-                LOG.debug('Masking observation %s/%s containing %s pixels', t, data.shape[3], data.shape[0]*data.shape[1])
-            obs = data[:,:,:,t]
+                LOG.debug(
+                    "Masking clouds in observation %s/%s containing %s pixels",
+                    t,
+                    data.shape[3],
+                    data.shape[0] * data.shape[1],
+                )
+            obs = data[:, :, :, t]
             prb = cm.predict_proba(obs, ref=ref).reshape(data.shape[0], data.shape[1])
             obs[prb > 0.5] = np.nan
     else:
         raise DataDimensionalityError("data must have 3 or 4 dimensions.")
+
+
+def mask_shadow_as_nan(data, model="fast-shadow", ref=None):
+    LOG.debug("loading %s model", model)
+    cm = MODELS[model]()
+    LOG.debug("Masking observations")
+    if len(data.shape) == 3:
+        prob = cm.predict_proba(data, ref=ref)
+        data[prob > 0.5] = np.nan
+    elif len(data.shape) == 4:
+        probs = np.empty((data.shape[0], data.shape[1], data.shape[3]), dtype=np.float32)
+        for t in range(data.shape[3]):
+            if t % 25 == 0:
+                LOG.debug(
+                    "Masking shadows in observation %s/%s containing %s pixels",
+                    t,
+                    data.shape[3],
+                    data.shape[0] * data.shape[1],
+                )
+            obs = data[:, :, :, t]
+            prb = cm.predict_proba(obs, ref=ref).reshape(data.shape[0], data.shape[1])
+            obs[prb > 0.5] = np.nan
+    else:
+        raise DataDimensionalityError("data must have 3 or 4 dimensions.")
+
+
+def mask_cloud_and_shadow_as_nan(data, cloudmodel="fast", shadowmodel="fast-shadow", ref=None):
+    mask_shadow_as_nan(data, model=shadowmodel, ref=ref)
+    mask_cloud_as_nan(data, model=cloudmodel, ref=ref)
 
 
 class Classifier:
@@ -131,16 +185,15 @@ class Classifier:
         self.ftrexprs = None
         self.model = None
 
+
 class SpectralCloudClassifier(Classifier):
     def __init__(self):
         super().__init__()
-        self.model, self.ftrexprs = joblib.load(
-            os.path.join(CWD, "models", "spectral-model.pkl.xz")
-        )
+        self.model, self.ftrexprs = joblib.load(os.path.join(CWD, "models", "spectral-model.pkl.xz"))
 
     def predict_proba(self, X: np.array, ref: Optional[np.array] = None) -> np.array:
-        if len(X.shape) == 4 and X.shape[2] == 10: # temporal stack (y,x,bands,time)
-            XX = np.transpose(X, [0,1,3,2]).reshape((X.shape[0], X.shape[1]*X.shape[3], X.shape[2]))
+        if len(X.shape) == 4 and X.shape[2] == 10:  # temporal stack (y,x,bands,time)
+            XX = np.transpose(X, [0, 1, 3, 2]).reshape((X.shape[0], X.shape[1] * X.shape[3], X.shape[2]))
             ftr = features(XX, self.ftrexprs, ref=ref)
             prob = self.model.predict_proba(ftr.reshape((-1, ftr.shape[2])))[:, 1]
             prob = prob.reshape((X.shape[0], X.shape[1], X.shape[3]))
@@ -150,9 +203,7 @@ class SpectralCloudClassifier(Classifier):
                 "Data shape should have length 3 and last dim should be equal to 10."
             )
         ftr = features(X, self.ftrexprs, ref=ref)
-        prob = self.model.predict_proba(ftr.reshape((-1, ftr.shape[2])))[:, 1].reshape(
-            X.shape[:2]
-        )
+        prob = self.model.predict_proba(ftr.reshape((-1, ftr.shape[2])))[:, 1].reshape(X.shape[:2])
         opening(prob, square(3), out=prob)
         return prob
 
@@ -160,19 +211,17 @@ class SpectralCloudClassifier(Classifier):
         prob = self.predict_proba(X)
         return prob > 0.5
 
-class FastSpectralCloudClassifier(SpectralCloudClassifier):
+
+class FastCloudClassifier(SpectralCloudClassifier):
     def __init__(self):
         super().__init__()
-        self.model, self.ftrexprs = joblib.load(
-            os.path.join(CWD, "models", "fast-spectral-model.pkl.xz")
-        )
+        self.model, self.ftrexprs = joblib.load(os.path.join(CWD, "models", "fast-spectral-model.pkl.xz"))
+
 
 class TemporalCloudClassifier(Classifier):
     def __init__(self):
         super().__init__()
-        self.model, self.ftrexprs = joblib.load(
-            os.path.join(CWD, "models", "temporal-model.pkl.xz")
-        )
+        self.model, self.ftrexprs = joblib.load(os.path.join(CWD, "models", "temporal-model.pkl.xz"))
 
     def predict_proba(self, X: np.array, ref: np.array) -> np.array:
         if len(X.shape) != 3 and X.shape[2] != 10:
@@ -180,9 +229,7 @@ class TemporalCloudClassifier(Classifier):
                 "Data shape should have length 3 and last dim should be equal to 10."
             )
         ftr = features(X, self.ftrexprs, ref=ref)
-        prob = self.model.predict_proba(ftr.reshape((-1, ftr.shape[2])))[:, 1].reshape(
-            X.shape[:2]
-        )
+        prob = self.model.predict_proba(ftr.reshape((-1, ftr.shape[2])))[:, 1].reshape(X.shape[:2])
         opening(prob, square(3), out=prob)
         return prob
 
@@ -190,8 +237,36 @@ class TemporalCloudClassifier(Classifier):
         prob = self.predict_proba(X, ref)
         return prob > 0.5
 
+
+class FastShadowClassifier(Classifier):
+    def __init__(self):
+        super().__init__()
+        self.model, self.ftrexprs = joblib.load(os.path.join(CWD, "models", "fast-shadow-model.pkl.xz"))
+
+    def predict_proba(self, X: np.array, ref: Optional[np.array] = None) -> np.array:
+        if len(X.shape) == 4 and X.shape[2] == 10:  # temporal stack (y,x,bands,time)
+            XX = np.transpose(X, [0, 1, 3, 2]).reshape((X.shape[0], X.shape[1] * X.shape[3], X.shape[2]))
+            ftr = features(XX, self.ftrexprs, ref=ref)
+            prob = self.model.predict_proba(ftr.reshape((-1, ftr.shape[2])))[:, 1]
+            prob = prob.reshape((X.shape[0], X.shape[1], X.shape[3]))
+            return prob
+        if len(X.shape) != 3 and X.shape[2] != 10:
+            raise DataDimensionalityError(
+                "Data shape should have length 3 and last dim should be equal to 10."
+            )
+        ftr = features(X, self.ftrexprs, ref=ref)
+        prob = self.model.predict_proba(ftr.reshape((-1, ftr.shape[2])))[:, 1].reshape(X.shape[:2])
+        opening(prob, square(3), out=prob)
+        return prob
+
+    def predict(self, X: np.array, ref: Optional[np.array] = None) -> np.array:
+        prob = self.predict_proba(X)
+        return prob > 0.5
+
+
 MODELS = {
-    'fast': FastSpectralCloudClassifier,
-    'spectral': SpectralCloudClassifier,
-    'temporal': TemporalCloudClassifier
+    "fast": FastCloudClassifier,
+    "fast-shadow": FastShadowClassifier,
+    "spectral": SpectralCloudClassifier,
+    "temporal": TemporalCloudClassifier,
 }

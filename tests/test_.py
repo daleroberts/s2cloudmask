@@ -19,6 +19,12 @@ def test_spectral_classifier():
         cloud = scc.predict_proba(obs)
         assert_equal(np.count_nonzero(cloud>0.5), 0)
 
+def test_spectral_classifier():
+        obs = CLEAR
+        scc = s2cm.FastSpectralCloudClassifier()
+        cloud = scc.predict_proba(obs)
+        assert_equal(np.count_nonzero(cloud>0.5), 0)
+
 def test_temporal_classifer():
         obs = CLEAR
         ref = REF
@@ -36,6 +42,12 @@ def test_spectral_easy_mask():
         obs = CLEAR
         obss = np.stack([obs, obs], axis=-1)
         mask = s2cm.cloud_mask(obss, model='spectral')
+        assert_equal(np.count_nonzero(mask), 0)
+
+def test_fast_easy_mask():
+        obs = CLEAR
+        obss = np.stack([obs, obs], axis=-1)
+        mask = s2cm.cloud_mask(obss, model='fast')
         assert_equal(np.count_nonzero(mask), 0)
 
 def test_spectral_mask_as_nan():
