@@ -33,6 +33,13 @@ This package has an easy interface. Given a numpy array `obs` ordered as (y,x,ba
 >>> mask = s2cm.cloud_mask(obs, model='spectral')
 ```
 
+### Tests
+
+Tests (and examples) are available in `tests/test_.py` and can be run with pytest from the project root.
+```
+$ pytest
+```
+
 ### Further References
 
 You may be interested to read:
