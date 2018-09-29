@@ -234,10 +234,13 @@ class FastCloudClassifier(Classifier):
         ftr = ftr.reshape((-1, ftr.shape[2]))
         good = ~np.isnan(ftr).any(axis=1)
         prob = np.nan * np.ones((X.shape[0], X.shape[1]), dtype=np.float32).ravel()
-        prob[good] = self.model.predict_proba(ftr[good])[:, 1]
-        prob = prob.reshape((X.shape[0], X.shape[1]))
-        opening(prob, square(3), out=prob)
-        prob[np.isnan(X).any(axis=2)] = np.nan
+        try:
+            prob[good] = self.model.predict_proba(ftr[good])[:, 1]
+            prob = prob.reshape((X.shape[0], X.shape[1]))
+            opening(prob, square(3), out=prob)
+            prob[np.isnan(X).any(axis=2)] = np.nan
+        except ValueError:
+            pass
         return prob
 
     def predict(self, X: np.array, ref: Optional[np.array] = None) -> np.array:
