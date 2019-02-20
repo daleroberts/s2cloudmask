@@ -288,9 +288,7 @@ class FastShadowClassifier(Classifier):
         ftr = features(X, self.ftrexprs, ref=ref)
         good = ~np.isnan(ftr).any(axis=2)
         prob = np.nan * np.ones((X.shape[0], X.shape[1]), dtype=np.float32)
-        prob[good] = self.model.predict_proba(ftr[good].reshape((-1, ftr.shape[2])))[:, 1].reshape(
-            X.shape[:2]
-        )
+        prob[good] = self.model.predict_proba(ftr[good].reshape((-1, ftr.shape[2])))[:, 1]
         return prob
 
     def predict(self, X: np.array, ref: Optional[np.array] = None) -> np.array:
