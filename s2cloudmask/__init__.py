@@ -260,8 +260,10 @@ class TemporalCloudClassifier(Classifier):
                 "Data shape should have length 3 and last dim should be equal to 10."
             )
         ftr = features(X, self.ftrexprs, ref=ref)
-        prob = self.model.predict_proba(ftr.reshape((-1, ftr.shape[2])))[:, 1].reshape(X.shape[:2])
-        opening(prob, square(3), out=prob)
+        good = ~np.isnan(ftr).any(axis=2)
+        prob = np.nan * np.ones((X.shape[0], X.shape[1]), dtype=np.float32)
+        if good.any():
+            prob[good] = self.model.predict_proba(ftr[good].reshape((-1, ftr.shape[2])))[:, 1]
         return prob
 
     def predict(self, X: np.array, ref: np.array) -> np.array:
