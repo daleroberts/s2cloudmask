@@ -128,6 +128,7 @@ class DataDimensionalityError(ValueError):
 
 
 def mask_cloud_as_nan(data, model="spectral", ref=None):
+    np.seterr(all='ignore')
     LOG.debug("loading %s model", model)
     cm = MODELS[model]()
     LOG.debug("Masking observations")
