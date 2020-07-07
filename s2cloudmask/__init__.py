@@ -8,7 +8,8 @@ from typing import Union, Optional
 from skimage.morphology import opening, square
 
 CWD = os.path.dirname(__file__)
-BANDNAMES = ["B02", "B03", "B04", "B05", "B06", "B07", "B08", "B8A", "B11", "B12"]
+#BANDNAMES = ["B02", "B03", "B04", "B05", "B06", "B07", "B08", "B8A", "B11", "B12"]
+BANDNAMES = ['blue', 'green', 'red', 'red_edge_1', 'red_edge_2', 'red_edge_3', 'nir_1', 'nir_2', 'swir_2', 'swir_3']
 
 LOG = logging.getLogger(__name__)
 
